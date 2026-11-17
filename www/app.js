@@ -92,6 +92,15 @@ const Snd = {
     this.tone(base, 0.5, { vol: 0.12, delay: 0.04, wet: 0.5 });
     this.tone(base * 1.5, 0.6, { vol: 0.08, delay: 0.09, wet: 0.6 });
   },
+  // both tiles of a pair: a double ceramic clack + bright two-note chime
+  pair(combo = 1) {
+    if (!this.fx()) return;
+    this.noise(0.035, { vol: 0.55, freq: 2600, q: 2.5 }); this.tone(420, 0.06, { vol: 0.15, wet: 0 });
+    this.noise(0.035, { vol: 0.55, freq: 3000, q: 2.5, delay: 0.07 }); this.tone(480, 0.06, { vol: 0.15, wet: 0, delay: 0.07 });
+    const k = Math.pow(2, Math.min(combo - 1, 8) / 12);
+    this.tone(1319 * k, 0.35, { vol: 0.13, delay: 0.02, wet: 0.5 });
+    this.tone(1976 * k, 0.45, { vol: 0.11, delay: 0.11, wet: 0.55 });
+  },
   block() { if (!this.fx()) return; this.tone(190, 0.12, { type: 'square', vol: 0.06, wet: 0 }); this.noise(0.04, { vol: 0.3, freq: 900 }); },
   hint() { if (!this.fx()) return; [784, 1047, 1319].forEach((f, i) => this.tone(f, 0.35, { vol: 0.1, delay: i * 0.08, wet: 0.6 })); },
   shuffle() { if (!this.fx()) return; this.noise(0.5, { vol: 0.35, freq: 1200, q: 0.6, type: 'bandpass', attack: 0.15, wet: 0.3 }); for (let i = 0; i < 10; i++) this.noise(0.03, { vol: 0.3, freq: 2500, q: 2, delay: 0.25 + i * 0.04 }); },
@@ -281,6 +290,86 @@ function makeLayout(seed, target) {
 }
 const levelTarget = lv => Math.min(116, 16 + Math.round(lv * 1.5) + (lv % 7 === 0 ? 8 : 0));
 
+// ---------- Hand-drawn shaped boards ----------
+const SHAPES = [
+  ['Zemra',      ['.XX.XX.', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']],
+  ['Flutura',    ['XX...XX', 'XXX.XXX', '.XXXXX.', '..XXX..', '.XXXXX.', 'XXX.XXX', 'XX...XX']],
+  ['Diamanti',   ['...X...', '..XXX..', '.XXXXX.', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...']],
+  ['Kryqi',      ['..XXX..', '..XXX..', 'XXXXXXX', 'XXXXXXX', 'XXXXXXX', '..XXX..', '..XXX..']],
+  ['Lulja',      ['..XXX..', '.XXXXX.', 'XX.X.XX', 'XXXXXXX', 'XX.X.XX', '.XXXXX.', '..XXX..']],
+  ['Breshka',    ['...X...', '.XXXXX.', 'XXXXXXX', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '.X...X.']],
+  ['Shtëpia',    ['...X...', '..XXX..', '.XXXXX.', 'XXXXXXX', '.XX.XX.', '.XX.XX.', '.XXXXX.']],
+  ['Ora e rërës',['XXXXXXX', '.XXXXX.', '..XXX..', '...X...', '..XXX..', '.XXXXX.', 'XXXXXXX']],
+  ['Unaza',      ['.XXXXX.', 'XX...XX', 'X.....X', 'X.....X', 'X.....X', 'XX...XX', '.XXXXX.']],
+  ['Kurora',     ['X..X..X', 'XX.X.XX', 'XXXXXXX', 'XXXXXXX', '.XXXXX.', '.XXXXX.']],
+  ['Ylli',       ['...X...', '..XXX..', 'XXXXXXX', '.XXXXX.', '..XXX..', '.XX.XX.', 'XX...XX']],
+  ['Pema',       ['...X...', '..XXX..', '.XXXXX.', '..XXX..', '.XXXXX.', 'XXXXXXX', '...X...', '...X...']],
+  ['Macja',      ['X.....X', 'XX...XX', 'XXXXXXX', 'XX.X.XX', 'XXXXXXX', '.XXXXX.', '..XXX..']],
+  ['Shigjeta',   ['...X...', '..XXX..', '.XXXXX.', 'XXXXXXX', '..XXX..', '..XXX..', '..XXX..']],
+  ['Iksi',       ['XX...XX', '.XX.XX.', '..XXX..', '..XXX..', '.XX.XX.', 'XX...XX']],
+  ['Kalaja',     ['X.X.X.X', 'XXXXXXX', '.XXXXX.', '.XXXXX.', '.XX.XX.', 'XXXXXXX']],
+  ['Hëna',       ['..XXX..', '.XX....', 'XX.....', 'XX.....', 'XX.....', '.XX....', '..XXX..']],
+  ['Ura',        ['XXXXXXX', 'XXXXXXX', 'XX...XX', 'XX...XX', 'XX...XX']],
+  ['Kupa',       ['XXXXXXX', 'XXXXXXX', '.XXXXX.', '..XXX..', '...X...', '..XXX..']],
+  ['Spiralja',   ['XXXXXXX', '......X', 'XXXXX.X', 'X...X.X', 'X.XXX.X', 'X.....X', 'XXXXXXX']],
+];
+const SHAPES_SMALL = [
+  ['Zemra e vogël', ['.X.X.', 'XXXXX', 'XXXXX', '.XXX.', '..X..']],
+  ['Diamanti i vogël', ['..X..', '.XXX.', 'XXXXX', '.XXX.', '..X..']],
+  ['Kryqi i vogël', ['.XX.', 'XXXX', 'XXXX', '.XX.']],
+  ['Shkallët', ['X...', 'XX..', 'XXX.', 'XXXX']],
+  ['Dritarja', ['XXXX', 'X..X', 'X..X', 'XXXX']],
+];
+function shapeLayout(rows, rng, target) {
+  const base = [];
+  rows.forEach((row, r) => [...row].forEach((ch, c) => { if (ch === 'X') base.push({ x: c * 2, y: r * 2, z: 0 }); }));
+  const W = Math.max(...base.map(t => t.x));
+  let best = null, bestD = 1e9;
+  for (const style of ['pyramid', 'stack', 'brick', 'tower']) for (let maxZ = 1; maxZ <= (style === 'tower' ? 3 : 5); maxZ++) for (let v = 0; v < 3; v++) {
+    const tiles = base.map(t => ({ ...t })), layer = [tiles.slice()];
+    const overlaps = (x, y, z) => (layer[z] || []).some(t => Math.abs(t.x - x) < 2 && Math.abs(t.y - y) < 2);
+    for (let z = 1; z < maxZ; z++) {
+      const prev = layer[z - 1] || [], at = (x, y) => prev.some(t => t.x === x && t.y === y);
+      const cands = [];
+      for (const t of prev) {
+        if (style === 'stack' && at(t.x - 2, t.y) && at(t.x + 2, t.y)) cands.push([t.x, t.y]);
+        else if (style === 'pyramid' && at(t.x + 2, t.y) && at(t.x, t.y + 2) && at(t.x + 2, t.y + 2)) cands.push([t.x + 1, t.y + 1]);
+        else if (style === 'brick' && at(t.x + 2, t.y)) cands.push([t.x + 1, t.y]);
+        else if (style === 'tower' && (z === 1 ? (t.x / 2 + t.y / 2) % 2 === 0 : true)) cands.push([t.x, t.y]);
+      }
+      for (const [x, y] of cands) {
+        const mx = W - x; if (x > mx) continue;
+        if (v > 0 && rng() < 0.25 * v) continue;
+        for (const xx of mx !== x ? [x, mx] : [x]) if (!overlaps(xx, y, z)) { const nt = { x: xx, y, z }; (layer[z] = layer[z] || []).push(nt); tiles.push(nt); }
+      }
+    }
+    const n = tiles.length - (tiles.length % 2);
+    const d = Math.abs(n - target) + (maxZ === 1 ? 4 : 0);
+    if (d < bestD) { best = tiles; bestD = d; }
+  }
+  if (best.length % 2) {
+    const cx = W / 2;
+    best.sort((a, b) => b.z - a.z || Math.abs(a.x - cx) - Math.abs(b.x - cx));
+    best.shift();
+  }
+  return best;
+}
+// Which board does a level use?  Every 3rd level is a named shape.
+function levelLayout(lv) {
+  const target = levelTarget(lv);
+  if (lv % 3 === 0) {
+    const rng = mulberry32(lv * 31 + 5);
+    const list = target < 30 ? SHAPES_SMALL : SHAPES;
+    const [name, rows] = list[Math.floor(lv / 3) % list.length];
+    return { name, layout: shapeLayout(rows, rng, target) };
+  }
+  return { name: '', layout: makeLayout(lv, target) };
+}
+const CHAPTERS = ['Kopshti i Qetë', 'Liqeni i Jadeit', 'Pylli i Bambusë', 'Mali me Mjegull', 'Tempulli i Artë', 'Lumi i Hënës', 'Pallati i Dragoit', 'Qyteti i Fenerëve', 'Ishulli i Luleve', 'Maja e Reve'];
+const CHAPTER_LEN = 20, MAX_LEVEL = 2000;
+const chapterOf = lv => Math.floor((lv - 1) / CHAPTER_LEN);
+const chapterName = c => CHAPTERS[c % CHAPTERS.length] + (c >= CHAPTERS.length ? ' ' + (Math.floor(c / CHAPTERS.length) + 1) : '');
+
 // ---------- Rules ----------
 function isFree(t, tiles) {
   let left = false, right = false;
@@ -339,25 +428,27 @@ function newGame(mode, id) {
   let seed, target, variety;
   if (mode === 'level') { seed = id; target = levelTarget(id); variety = id < 25 ? 'low' : (id < 60 ? (id % 2 ? 'low' : 'high') : 'high'); }
   else { const [y, m, d] = id.split('-').map(Number); seed = y * 10000 + m * 100 + d + 777; target = 72 + (d % 4) * 8; variety = 'high'; }
-  let tiles, ok = false;
+  let tiles, ok = false, name = '';
   for (let tries = 0; tries < 6 && !ok; tries++) {
-    const layout = makeLayout(seed + tries * 1000, target);
+    let layout;
+    if (mode === 'level' && tries < 3) { const L = levelLayout(id); layout = L.layout; name = L.name; }
+    else { layout = makeLayout(seed + tries * 1000, target); name = ''; }
     tiles = layout.map((p, i) => ({ id: i, x: p.x, y: p.y, z: p.z, k: null, removed: false }));
     ok = solvableAssign(tiles, buildPairs(tiles.length / 2, variety, Math.random));
   }
   tiles.forEach(t => { t.k = t._k; delete t._k; });
-  G = { mode, id, tiles, history: [], time: 0, sel: null, used: 0, won: false, combo: 0, lastMatch: 0, total: tiles.length };
+  G = { mode, id, tiles, name, history: [], time: 0, sel: null, used: 0, won: false, combo: 0, lastMatch: 0, total: tiles.length };
   saveGame();
   startGameScreen(true);
 }
 function saveGame() {
   if (!G || G.won) { store.del('game'); return; }
-  store.set('game', { mode: G.mode, id: G.id, time: G.time, used: G.used, history: G.history, tiles: G.tiles.map(t => [t.x, t.y, t.z, t.k, t.removed ? 1 : 0]) });
+  store.set('game', { mode: G.mode, id: G.id, name: G.name || '', time: G.time, used: G.used, history: G.history, tiles: G.tiles.map(t => [t.x, t.y, t.z, t.k, t.removed ? 1 : 0]) });
 }
 function loadGame(mode, id) {
   const g = store.get('game', null);
   if (!g || g.mode !== mode || g.id !== id) return false;
-  G = { mode, id, time: g.time || 0, used: g.used || 0, history: g.history || [], sel: null, won: false, combo: 0, lastMatch: 0,
+  G = { mode, id, name: g.name || '', time: g.time || 0, used: g.used || 0, history: g.history || [], sel: null, won: false, combo: 0, lastMatch: 0,
     tiles: g.tiles.map((a, i) => ({ id: i, x: a[0], y: a[1], z: a[2], k: a[3], removed: !!a[4] })) };
   G.total = G.tiles.length;
   return !G.tiles.every(t => t.removed);
@@ -550,7 +641,14 @@ function removePair(a, b, silent) {
 }
 function flyAndBreak(elA, elB, combo) {
   if (!elA || !elB) return;
-  elA.classList.remove('sel', 'hint', 'shake'); elB.classList.remove('sel', 'hint', 'shake');
+  // 1) both tiles light up together with a "pair" chime
+  elA.classList.remove('hint', 'shake'); elB.classList.remove('hint', 'shake');
+  elA.classList.add('sel', 'matched'); elB.classList.add('sel', 'matched');
+  Snd.pair(combo); vibe(12);
+  setTimeout(() => flyAndBreak2(elA, elB, combo), 230);
+}
+function flyAndBreak2(elA, elB, combo) {
+  elA.classList.remove('sel', 'matched'); elB.classList.remove('sel', 'matched');
   const ra = elA.getBoundingClientRect(), rb = elB.getBoundingClientRect();
   const w = ra.width;
   let mx = (ra.left + ra.right + rb.left + rb.right) / 4, my = (ra.top + ra.bottom + rb.top + rb.bottom) / 4 - w * 0.3;
@@ -710,7 +808,7 @@ function startGameScreen(intro) {
   closeModal();
   showScreen('game');
   Snd.startMusic();
-  $('gameTitle').textContent = G.mode === 'level' ? 'Niveli ' + G.id : 'Sfida · ' + fmtDate(G.id);
+  $('gameTitle').textContent = G.mode === 'level' ? 'Niveli ' + G.id + (G.name ? ' · ' + G.name : '') : 'Sfida · ' + fmtDate(G.id);
   requestAnimationFrame(() => {
     renderBoard(intro);
     if (G.mode === 'level' && G.id === 1 && !store.get('tutorial', false)) {
@@ -741,7 +839,7 @@ function openMap() {
   showScreen('levels');
   const map = $('levelMap'); map.innerHTML = '';
   const W = map.clientWidth || 360;
-  const max = Math.max(S.level + 12, 30);
+  const max = Math.min(MAX_LEVEL, Math.max(S.level + 30, 60));
   const gap = 118, top = 70;
   const H = top * 2 + (max - 1) * gap;
   map.style.height = H + 'px';
@@ -758,7 +856,15 @@ function openMap() {
     b.innerHTML = locked ? '🔒' : i;
     if (done) { const st = S.stars[i] || 1; b.innerHTML += `<span class="nstars">${'★'.repeat(st)}<span class="off">${'★'.repeat(3 - st)}</span></span>`; }
     if (!locked) b.onclick = () => { Snd.resume(); Snd.click(); playLevel(i); };
+    if (i % 3 === 0 && !locked) b.classList.add('shape');
     map.appendChild(b);
+    if ((i - 1) % CHAPTER_LEN === 0) {
+      const c = chapterOf(i), ban = document.createElement('div');
+      ban.className = 'chapter' + (i > S.level ? ' locked' : '');
+      ban.innerHTML = `<small>Kapitulli ${c + 1}</small>${chapterName(c)}`;
+      ban.style.top = (y + gap * 0.55) + 'px';
+      map.appendChild(ban);
+    }
   }
   requestAnimationFrame(() => { const [, y] = pos(S.level); $('mapScroll').scrollTop = y - $('mapScroll').clientHeight / 2; });
 }
