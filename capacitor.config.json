@@ -1,0 +1,6 @@
+{
+  "appId": "com.eldjan.mahjongrelax",
+  "appName": "Mahjong Relax",
+  "webDir": "www",
+  "android": { "backgroundColor": "#17603f" }
+}

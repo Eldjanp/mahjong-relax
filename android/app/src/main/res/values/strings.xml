@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Mahjong Relax</string>
+    <string name="title_activity_main">Mahjong Relax</string>
+    <string name="package_name">com.eldjan.mahjongrelax</string>
+    <string name="custom_url_scheme">com.eldjan.mahjongrelax</string>
+</resources>

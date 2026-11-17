@@ -1,0 +1,116 @@
+<!DOCTYPE html>
+<html lang="sq">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#14513a">
+<title>Mahjong Relax</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body class="theme-green">
+
+<!-- HOME -->
+<section id="home" class="screen">
+  <div class="home-top">
+    <div class="coins-pill"><i class="coin"></i><span class="coinsVal">0</span></div>
+  </div>
+  <div class="logo">
+    <div class="logo-tiles">
+      <div class="lt t1">中</div><div class="lt t2">發</div><div class="lt t3">🌸</div>
+    </div>
+    <h1>Mahjong<br><span>Relax</span></h1>
+  </div>
+  <div class="home-btns">
+    <button id="playBtn" class="btn primary huge">
+      <span class="lbl">Luaj</span>
+      <span class="sub" id="playSub">Niveli 1</span>
+    </button>
+    <button id="dailyBtn" class="btn gold big">
+      <span>📅 Sfida ditore</span>
+      <span class="sub" id="dailySub"></span>
+    </button>
+    <div class="row">
+      <button id="levelsBtn" class="btn big">🗺️ Nivelet</button>
+      <button id="settingsBtn" class="btn big">⚙️ Cilësimet</button>
+    </div>
+  </div>
+</section>
+
+<!-- GAME -->
+<section id="game" class="screen hidden">
+  <header class="game-top">
+    <button id="backBtn" class="icon-btn" aria-label="Kthehu">‹</button>
+    <div class="gt-mid">
+      <div id="gameTitle">Niveli 1</div>
+      <div class="gt-info"><span id="tilesLeft">0</span> pllaka · <span id="timer">0:00</span></div>
+    </div>
+    <div class="coins-pill small"><i class="coin"></i><span class="coinsVal">0</span></div>
+  </header>
+  <div id="boardWrap"><div id="board"></div></div>
+  <footer class="tools">
+    <button class="tool" id="undoBtn"><span class="ic">↶</span><span class="tl">Kthe</span><b class="badge" id="undoCount">3</b></button>
+    <button class="tool" id="hintBtn"><span class="ic">💡</span><span class="tl">Ndihmë</span><b class="badge" id="hintCount">3</b></button>
+    <button class="tool" id="shuffleBtn"><span class="ic">🔀</span><span class="tl">Përzie</span><b class="badge" id="shuffleCount">3</b></button>
+  </footer>
+</section>
+
+<!-- LEVELS -->
+<section id="levels" class="screen hidden">
+  <header class="sub-top"><button class="icon-btn back">‹</button><h2>Nivelet</h2><span></span></header>
+  <div id="levelGrid" class="scroll"></div>
+</section>
+
+<!-- DAILY -->
+<section id="daily" class="screen hidden">
+  <header class="sub-top"><button class="icon-btn back">‹</button><h2>Sfida ditore</h2><span></span></header>
+  <div class="cal-wrap">
+    <div class="cal-head">
+      <button id="calPrev" class="icon-btn">‹</button>
+      <div id="calMonth"></div>
+      <button id="calNext" class="icon-btn">›</button>
+    </div>
+    <div class="trophy-bar"><span>🏆</span><div class="tb-track"><div id="tbFill"></div></div><span id="tbText">0/30</span></div>
+    <div class="cal-dow"><span>H</span><span>M</span><span>M</span><span>E</span><span>P</span><span>S</span><span>D</span></div>
+    <div id="calGrid"></div>
+    <button id="dailyPlay" class="btn primary big">Luaj</button>
+  </div>
+</section>
+
+<!-- SETTINGS -->
+<section id="settings" class="screen hidden">
+  <header class="sub-top"><button class="icon-btn back">‹</button><h2>Cilësimet</h2><span></span></header>
+  <div class="scroll settings-list">
+    <label class="set"><span>🔊 Zëri</span><input type="checkbox" id="setSound"><i class="sw"></i></label>
+    <label class="set"><span>📳 Dridhjet</span><input type="checkbox" id="setVibe"><i class="sw"></i></label>
+    <label class="set"><span>🔦 Errëso pllakat e bllokuara</span><input type="checkbox" id="setDim"><i class="sw"></i></label>
+    <label class="set"><span>🔢 Numrat në qoshe</span><input type="checkbox" id="setNums"><i class="sw"></i></label>
+    <div class="set col"><span>🎨 Sfondi</span>
+      <div class="themes">
+        <button data-theme="green" class="th th-green"></button>
+        <button data-theme="blue" class="th th-blue"></button>
+        <button data-theme="wood" class="th th-wood"></button>
+        <button data-theme="purple" class="th th-purple"></button>
+        <button data-theme="sand" class="th th-sand"></button>
+      </div>
+    </div>
+    <div class="set col"><span>❓ Si luhet</span>
+      <p class="howto">Prek dy pllaka <b>të njëjta</b> që janë <b>të lira</b> për t'i hequr. Një pllakë është e lirë kur nuk ka asgjë sipër dhe ka të paktën njërën anë (majtas ose djathtas) të hapur. Çdo lule përputhet me çdo lule tjetër, dhe çdo stinë me çdo stinë. Hiqi të gjitha pllakat për të fituar!</p>
+    </div>
+  </div>
+</section>
+
+<!-- MODAL -->
+<div id="modal" class="hidden">
+  <div class="modal-card">
+    <div id="mIcon"></div>
+    <h3 id="mTitle"></h3>
+    <p id="mText"></p>
+    <div id="mBtns"></div>
+  </div>
+</div>
+<div id="toast"></div>
+<div id="confetti"></div>
+
+<script src="app.js"></script>
+</body>
+</html>
