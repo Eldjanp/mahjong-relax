@@ -7,31 +7,35 @@
 <title>Mahjong Relax</title>
 <link rel="stylesheet" href="style.css">
 </head>
-<body class="theme-green">
+<body class="bg-jade tiles-jade">
+<div id="bgPattern"></div>
 
 <!-- HOME -->
 <section id="home" class="screen">
+  <div id="floaters"></div>
   <div class="home-top">
     <div class="coins-pill"><i class="coin"></i><span class="coinsVal">0</span></div>
   </div>
   <div class="logo">
     <div class="logo-tiles">
-      <div class="lt t1">中</div><div class="lt t2">發</div><div class="lt t3">🌸</div>
+      <div class="lt t1"><div class="lt-face">發</div></div>
+      <div class="lt t2"><div class="lt-face">中</div></div>
+      <div class="lt t3"><div class="lt-face">🌸</div></div>
     </div>
-    <h1>Mahjong<br><span>Relax</span></h1>
+    <h1>Mahjong<span>Relax</span></h1>
   </div>
   <div class="home-btns">
-    <button id="playBtn" class="btn primary huge">
+    <button id="playBtn" class="btn primary huge pulse">
       <span class="lbl">Luaj</span>
       <span class="sub" id="playSub">Niveli 1</span>
     </button>
-    <button id="dailyBtn" class="btn gold big">
+    <button id="dailyBtn" class="btn coral big">
       <span>📅 Sfida ditore</span>
       <span class="sub" id="dailySub"></span>
     </button>
     <div class="row">
-      <button id="levelsBtn" class="btn big">🗺️ Nivelet</button>
-      <button id="settingsBtn" class="btn big">⚙️ Cilësimet</button>
+      <button id="levelsBtn" class="btn glass big">🗺️ Nivelet</button>
+      <button id="settingsBtn" class="btn glass big">⚙️ Cilësimet</button>
     </div>
   </div>
 </section>
@@ -42,7 +46,7 @@
     <button id="backBtn" class="icon-btn" aria-label="Kthehu">‹</button>
     <div class="gt-mid">
       <div id="gameTitle">Niveli 1</div>
-      <div class="gt-info"><span id="tilesLeft">0</span> pllaka · <span id="timer">0:00</span></div>
+      <div class="progress"><div id="progFill"></div><span id="progText">0/0</span></div>
     </div>
     <div class="coins-pill small"><i class="coin"></i><span class="coinsVal">0</span></div>
   </header>
@@ -54,47 +58,56 @@
   </footer>
 </section>
 
-<!-- LEVELS -->
+<!-- LEVEL MAP -->
 <section id="levels" class="screen hidden">
-  <header class="sub-top"><button class="icon-btn back">‹</button><h2>Nivelet</h2><span></span></header>
-  <div id="levelGrid" class="scroll"></div>
+  <header class="sub-top"><button class="icon-btn back">‹</button><h2>Udhëtimi</h2><div class="coins-pill small"><i class="coin"></i><span class="coinsVal">0</span></div></header>
+  <div id="mapScroll" class="scroll"><div id="levelMap"></div></div>
 </section>
 
 <!-- DAILY -->
 <section id="daily" class="screen hidden">
   <header class="sub-top"><button class="icon-btn back">‹</button><h2>Sfida ditore</h2><span></span></header>
-  <div class="cal-wrap">
+  <div class="cal-wrap card">
     <div class="cal-head">
-      <button id="calPrev" class="icon-btn">‹</button>
+      <button id="calPrev" class="icon-btn small">‹</button>
       <div id="calMonth"></div>
-      <button id="calNext" class="icon-btn">›</button>
+      <button id="calNext" class="icon-btn small">›</button>
     </div>
-    <div class="trophy-bar"><span>🏆</span><div class="tb-track"><div id="tbFill"></div></div><span id="tbText">0/30</span></div>
+    <div class="trophy-bar"><span class="cup">🏆</span><div class="tb-track"><div id="tbFill"></div></div><span id="tbText">0/30</span></div>
     <div class="cal-dow"><span>H</span><span>M</span><span>M</span><span>E</span><span>P</span><span>S</span><span>D</span></div>
     <div id="calGrid"></div>
-    <button id="dailyPlay" class="btn primary big">Luaj</button>
   </div>
+  <button id="dailyPlay" class="btn primary big">Luaj</button>
 </section>
 
 <!-- SETTINGS -->
 <section id="settings" class="screen hidden">
   <header class="sub-top"><button class="icon-btn back">‹</button><h2>Cilësimet</h2><span></span></header>
   <div class="scroll settings-list">
-    <label class="set"><span>🔊 Zëri</span><input type="checkbox" id="setSound"><i class="sw"></i></label>
+    <label class="set"><span>🎵 Muzika</span><input type="checkbox" id="setMusic"><i class="sw"></i></label>
+    <label class="set"><span>🔊 Efektet zanore</span><input type="checkbox" id="setSound"><i class="sw"></i></label>
     <label class="set"><span>📳 Dridhjet</span><input type="checkbox" id="setVibe"><i class="sw"></i></label>
     <label class="set"><span>🔦 Errëso pllakat e bllokuara</span><input type="checkbox" id="setDim"><i class="sw"></i></label>
     <label class="set"><span>🔢 Numrat në qoshe</span><input type="checkbox" id="setNums"><i class="sw"></i></label>
+    <div class="set col"><span>🀄 Stili i pllakave</span>
+      <div class="choices" id="tileChoices">
+        <button data-tiles="jade" class="tc"><i style="--c:#2e8b62"></i>Jeshile</button>
+        <button data-tiles="blue" class="tc"><i style="--c:#2f6fc0"></i>Blu</button>
+        <button data-tiles="wood" class="tc"><i style="--c:#b0703a"></i>Dru</button>
+        <button data-tiles="rose" class="tc"><i style="--c:#cf5f86"></i>Rozë</button>
+      </div>
+    </div>
     <div class="set col"><span>🎨 Sfondi</span>
-      <div class="themes">
-        <button data-theme="green" class="th th-green"></button>
-        <button data-theme="blue" class="th th-blue"></button>
-        <button data-theme="wood" class="th th-wood"></button>
-        <button data-theme="purple" class="th th-purple"></button>
-        <button data-theme="sand" class="th th-sand"></button>
+      <div class="themes" id="bgChoices">
+        <button data-bg="jade" class="th bg-jade"></button>
+        <button data-bg="ocean" class="th bg-ocean"></button>
+        <button data-bg="sunset" class="th bg-sunset"></button>
+        <button data-bg="lavender" class="th bg-lavender"></button>
+        <button data-bg="night" class="th bg-night"></button>
       </div>
     </div>
     <div class="set col"><span>❓ Si luhet</span>
-      <p class="howto">Prek dy pllaka <b>të njëjta</b> që janë <b>të lira</b> për t'i hequr. Një pllakë është e lirë kur nuk ka asgjë sipër dhe ka të paktën njërën anë (majtas ose djathtas) të hapur. Çdo lule përputhet me çdo lule tjetër, dhe çdo stinë me çdo stinë. Hiqi të gjitha pllakat për të fituar!</p>
+      <p class="howto">Prek dy pllaka <b>të njëjta</b> që janë <b>të lira</b> dhe ato do të thyhen e zhduken. Një pllakë është e lirë kur nuk ka asgjë sipër dhe ka të paktën njërën anë (majtas ose djathtas) të hapur. Çdo lule përputhet me çdo lule, çdo stinë me çdo stinë. Bëj çifte shpejt njëri pas tjetrit për <b>kombo</b>! Hiqi të gjitha pllakat për të fituar.</p>
     </div>
   </div>
 </section>
@@ -104,12 +117,13 @@
   <div class="modal-card">
     <div id="mIcon"></div>
     <h3 id="mTitle"></h3>
-    <p id="mText"></p>
+    <div id="mStars" class="stars hidden"><i>★</i><i>★</i><i>★</i></div>
+    <div id="mText"></div>
     <div id="mBtns"></div>
   </div>
 </div>
 <div id="toast"></div>
-<div id="confetti"></div>
+<canvas id="fx"></canvas>
 
 <script src="app.js"></script>
 </body>
