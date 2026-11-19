@@ -633,7 +633,7 @@ function updateTools() {
 function bumpCoins() { document.querySelectorAll('.coins-pill').forEach(p => { p.classList.remove('bump'); void p.offsetWidth; p.classList.add('bump'); }); }
 
 // FLIP: animate an element from a source rectangle to where it now is
-function flyFrom(el, from, dur = 320, arc = 0.35) {
+function flyFrom(el, from, dur = 180, arc = 0.2) {
   const to = el.getBoundingClientRect();
   const dx = from.left - to.left, dy = from.top - to.top, s = from.width / to.width;
   el.style.transformOrigin = '0 0';
@@ -642,7 +642,7 @@ function flyFrom(el, from, dur = 320, arc = 0.35) {
     { transform: `translate(${dx}px, ${dy}px) scale(${s})` },
     { transform: `translate(${dx * 0.45}px, ${dy * 0.5 + midY}px) scale(${(s + 1.15) / 2}) rotate(${dx > 0 ? -6 : 6}deg)`, offset: 0.55 },
     { transform: 'translate(0,0) scale(1)' }
-  ], { duration: dur, easing: 'cubic-bezier(.3,.6,.35,1)' });
+  ], { duration: dur, easing: 'cubic-bezier(.2,.7,.3,1)' });
 }
 
 // ---------- Tile images for the shatter effect ----------
@@ -786,9 +786,9 @@ function moveToTray(t) {
   G.tray.push(t.id);
   G.history.push(t.id);
   const el = makeTrayEl(t, G.tray.length - 1);
-  flyFrom(el, from, 300);
+  flyFrom(el, from, 170);
   Snd.click(); vibe(10);
-  setTimeout(() => Snd.land(), 260);
+  setTimeout(() => Snd.land(), 140);
   refreshFree();
   // a pair in the tray?
   const mate = G.tray.find(id => id !== t.id && matchKey(G.tiles[id].k) === matchKey(t.k));
@@ -799,20 +799,20 @@ function moveToTray(t) {
     G.history = G.history.filter(id => id !== a.id && id !== b.id);
     const now = performance.now();
     G.combo = (now - G.lastMatch < 4000) ? G.combo + 1 : 1; G.lastMatch = now;
-    { const combo = G.combo, tr = trayEl.getBoundingClientRect(); setTimeout(() => onPairBroken(a, b, combo, tr.left + tr.width / 2, tr.bottom + 10), 700); }
+    { const combo = G.combo, tr = trayEl.getBoundingClientRect(); setTimeout(() => onPairBroken(a, b, combo, tr.left + tr.width / 2, tr.bottom + 10), 420); }
     const elA = trayEls.get(a.id), elB = trayEls.get(b.id);
     trayEls.delete(a.id); trayEls.delete(b.id);
-    setTimeout(() => breakPair(elA, elB, G.combo), 300);
-    setTimeout(relayoutTray, 520);
+    setTimeout(() => breakPair(elA, elB, G.combo), 170);
+    setTimeout(relayoutTray, 300);
   } else if (G.tray.length >= TRAY_MAX) {
     G.over = true;
-    setTimeout(trayFull, 380);
+    setTimeout(trayFull, 220);
   } else {
     if (G.tray.length === TRAY_MAX - 1) { setTimeout(() => Snd.warn(), 300); goalFail('calm'); }
     relayoutTray();
   }
   updateInfo(); saveGame();
-  if (G.tiles.every(x => x.state === 2)) setTimeout(win, 1300);
+  if (G.tiles.every(x => x.state === 2)) setTimeout(win, 900);
 }
 function breakPair(elA, elB, combo) {
   if (!elA || !elB) return;
@@ -824,7 +824,7 @@ function breakPair(elA, elB, combo) {
     const aLeft = ra.left <= rb.left;
     const mx = (ra.left + ra.right + rb.left + rb.right) / 4;
     const my = Math.min(ra.top, rb.top) + ra.height * 0.35;
-    const D = 200;
+    const D = 120;
     [[elA, ra, aLeft ? -1 : 1], [elB, rb, aLeft ? 1 : -1]].forEach(([el, r, side]) => {
       const tx = mx + side * r.width * 0.5 - (r.left + r.width / 2);
       el.animate([{ transform: 'translateY(-14%) scale(1.06)' }, { transform: `translate(${tx}px, -38%) scale(1.12) rotate(${-side * 8}deg)` }], { duration: D, easing: 'cubic-bezier(.55,0,.9,.5)', fill: 'forwards' });
@@ -840,7 +840,7 @@ function breakPair(elA, elB, combo) {
       Snd.breakTiles(combo); vibe(combo > 1 ? [20, 25, 30] : 30);
       if (combo >= 2) showCombo(mx, ra2.top - 10, combo);
     }, D);
-  }, 200);
+  }, 110);
 }
 function showCombo(x, y, n) {
   const el = document.createElement('div');
@@ -862,7 +862,7 @@ function returnToBoard(id) {
   G.history = G.history.filter(x => x !== id);
   t.state = 0;
   const el = makeTileEl(t);
-  if (from) flyFrom(el, from, 340, 0.2); else el.classList.add('rise');
+  if (from) flyFrom(el, from, 200, 0.15); else el.classList.add('rise');
 }
 function afterRescue() {
   G.over = false; trayEl.classList.remove('full');

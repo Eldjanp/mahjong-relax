@@ -226,7 +226,7 @@ body { --b1: #2fb487; --b2: #137a57; --b3: #08402e; background: linear-gradient(
 #tray.warn { border-color: rgba(255,170,60,.9); box-shadow: inset 0 3px 10px rgba(0,0,0,.35), 0 0 0 4px rgba(255,170,60,.35), 0 0 22px rgba(255,150,40,.45); }
 #tray.full { border-color: #ff5a4f; box-shadow: inset 0 3px 10px rgba(0,0,0,.35), 0 0 0 4px rgba(255,80,70,.45), 0 0 26px rgba(255,60,50,.6); animation: trayShake .45s; }
 @keyframes trayShake { 20% { transform: translateX(-8px); } 40% { transform: translateX(8px); } 60% { transform: translateX(-5px); } 80% { transform: translateX(5px); } }
-#tray .tile { top: 10px; transition: left .25s cubic-bezier(.3,1.3,.5,1), transform .2s; }
+#tray .tile { top: 10px; transition: left .16s cubic-bezier(.3,1.2,.5,1), transform .12s; }
 #tray .tile.lift { transform: translateY(-14%) scale(1.06); }
 
 /* tiles: crisper, modern */
