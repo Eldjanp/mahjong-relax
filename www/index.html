@@ -8,6 +8,7 @@
 <link rel="stylesheet" href="style.css">
 </head>
 <body class="bg-jade tiles-jade">
+<div id="bgBlobs"><i class="blob b1"></i><i class="blob b2"></i><i class="blob b3"></i></div>
 <div id="bgPattern"></div>
 
 <!-- HOME -->
@@ -50,9 +51,15 @@
     </div>
     <div class="coins-pill small"><i class="coin"></i><span class="coinsVal">0</span></div>
   </header>
+  <div id="trayWrap">
+    <div id="tray">
+      <i class="slot"></i><i class="slot"></i><i class="slot"></i><i class="slot"></i>
+    </div>
+  </div>
   <div id="boardWrap"><div id="board"></div></div>
   <footer class="tools">
     <button class="tool" id="undoBtn"><span class="ic">↶</span><span class="tl">Kthe</span><b class="badge" id="undoCount">3</b></button>
+    <button class="tool" id="clearBtn"><span class="ic">📤</span><span class="tl">Pastro</span><b class="badge" id="clearCount">3</b></button>
     <button class="tool" id="hintBtn"><span class="ic">💡</span><span class="tl">Ndihmë</span><b class="badge" id="hintCount">3</b></button>
     <button class="tool" id="shuffleBtn"><span class="ic">🔀</span><span class="tl">Përzie</span><b class="badge" id="shuffleCount">3</b></button>
   </footer>
@@ -107,7 +114,7 @@
       </div>
     </div>
     <div class="set col"><span>❓ Si luhet</span>
-      <p class="howto">Prek dy pllaka <b>të njëjta</b> që janë <b>të lira</b> dhe ato do të thyhen e zhduken. Një pllakë është e lirë kur nuk ka asgjë sipër dhe ka të paktën njërën anë (majtas ose djathtas) të hapur. Çdo lule përputhet me çdo lule, çdo stinë me çdo stinë. Bëj çifte shpejt njëri pas tjetrit për <b>kombo</b>! Hiqi të gjitha pllakat për të fituar.</p>
+      <p class="howto">Prek një pllakë <b>të lirë</b> dhe ajo shkon në <b>kutinë lart</b> (4 vende). Kur dy pllaka <b>të njëjta</b> bashkohen në kuti, ato thyhen. Nëse kutia mbushet me 4 pllaka të ndryshme, niveli humbet — por mund ta shpëtosh me <b>↶ Kthe</b> ose <b>📤 Pastro</b>. Një pllakë është e lirë kur nuk ka asgjë sipër dhe ka të paktën njërën anë të hapur. Çdo lule përputhet me çdo lule, çdo stinë me çdo stinë.</p>
     </div>
   </div>
 </section>

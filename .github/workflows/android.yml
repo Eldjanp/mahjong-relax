@@ -43,8 +43,8 @@ jobs:
       - name: Publish GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          tag_name: v1.2.${{ github.run_number }}
-          name: Mahjong Relax v1.2.${{ github.run_number }}
+          tag_name: v2.0.${{ github.run_number }}
+          name: Mahjong Relax v2.0.${{ github.run_number }}
           body: |
             Shkarko **MahjongRelax.apk** në telefonin Android dhe instaloje.
             (Mund t'ju kërkohet të lejoni "Instalimin nga burime të panjohura".)
