@@ -15,6 +15,7 @@
 <section id="home" class="screen">
   <div id="floaters"></div>
   <div class="home-top">
+    <button id="settingsBtn" class="icon-btn" aria-label="Cilësimet">⚙️</button>
     <div class="coins-pill"><i class="coin"></i><span class="coinsVal">0</span></div>
   </div>
   <div class="logo">
@@ -36,8 +37,9 @@
     </button>
     <div class="row">
       <button id="levelsBtn" class="btn glass big">🗺️ Nivelet</button>
-      <button id="settingsBtn" class="btn glass big">⚙️ Cilësimet</button>
+      <button id="missionsBtn" class="btn glass big">🎯 Sfidat<b class="mission-badge hidden">0</b></button>
     </div>
+    <div class="home-chest"><span>🧰</span><div class="hc-track"><div id="homeChestFill"></div></div><b>⭐ <span id="homeChestText">0/10</span></b></div>
   </div>
 </section>
 
@@ -48,6 +50,7 @@
     <div class="gt-mid">
       <div id="gameTitle">Niveli 1</div>
       <div class="progress"><div id="progFill"></div><span id="progText">0/0</span></div>
+      <div id="goalChip" class="hidden"></div>
     </div>
     <div class="coins-pill small"><i class="coin"></i><span class="coinsVal">0</span></div>
   </header>
@@ -69,6 +72,21 @@
 <section id="levels" class="screen hidden">
   <header class="sub-top"><button class="icon-btn back">‹</button><h2>Udhëtimi</h2><div class="coins-pill small"><i class="coin"></i><span class="coinsVal">0</span></div></header>
   <div id="mapScroll" class="scroll"><div id="levelMap"></div></div>
+</section>
+
+<!-- MISSIONS -->
+<section id="missions" class="screen hidden">
+  <header class="sub-top"><button class="icon-btn back">‹</button><h2>Sfidat</h2><div class="coins-pill small"><i class="coin"></i><span class="coinsVal">0</span></div></header>
+  <div class="scroll">
+    <div class="card chest-card">
+      <div class="cc-row"><span class="cc-ic">🧰</span><div class="cc-body"><b>Sandëku me yje</b><small>Mblidh yje duke kaluar nivele. Çdo 10 yje hap një sandëk me ndihma!</small>
+        <div class="m-bar"><div id="mChestFill"></div><span id="mChestText">0/10</span></div></div></div>
+      <div class="cc-row"><span class="cc-ic">🎁</span><div class="cc-body"><b>Dhurata e radhës</b><small>Çdo 5 nivele merr një dhuratë, dhe çdo 20 nivele një shpërblim të madh 👑</small><div class="cc-next" id="mGiftText"></div></div></div>
+    </div>
+    <h3 class="m-head">Sfidat aktive</h3>
+    <div id="missionList"></div>
+    <p class="m-note">Sfidat e kryera zëvendësohen me të reja, gjithnjë e më të vështira e me shpërblime më të mëdha. Nivelet me 🎯 në hartë kanë sfida të veçanta me bonus.</p>
+  </div>
 </section>
 
 <!-- DAILY -->

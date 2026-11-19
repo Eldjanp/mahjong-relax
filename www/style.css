@@ -249,3 +249,64 @@ body { --b1: #2fb487; --b2: #137a57; --b3: #08402e; background: linear-gradient(
 .modal-card { border-radius: 32px; }
 #mBtns .btn.danger { background: linear-gradient(180deg, #ff8a7a, #e8443a); color: #fff; box-shadow: 0 5px 0 #a8281f; }
 #mBtns .btn[disabled] { opacity: .45; }
+
+/* =================== v2.1 rewards =================== */
+.home-top { justify-content: space-between; align-items: center; }
+.btn .mission-badge, .mission-badge { position: absolute; top: -8px; right: -4px; min-width: 28px; height: 28px; border-radius: 14px; background: linear-gradient(180deg, #ff7a6b, #e8443a); border: 2px solid #fff; font-size: 15px; display: flex; align-items: center; justify-content: center; padding: 0 6px; animation: badgePop 1.2s ease-in-out infinite; }
+@keyframes badgePop { 50% { transform: scale(1.15); } }
+.home-chest { display: flex; align-items: center; gap: 10px; background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.18); border-radius: 18px; padding: 8px 14px; font-size: 16px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.home-chest > span { font-size: 26px; }
+.hc-track, .wc-track { flex: 1; height: 14px; border-radius: 7px; background: rgba(0,0,0,.28); overflow: hidden; }
+#homeChestFill, .wc-track > div { height: 100%; background: linear-gradient(90deg, #ffe27a, #ffb21e); border-radius: 7px; transition: width .6s; }
+
+#goalChip { font-size: 13px; font-weight: 800; padding: 3px 10px; border-radius: 999px; background: rgba(255,255,255,.2); white-space: nowrap; }
+#goalChip.ok { background: #4cd964; color: #08361a; }
+#goalChip.failed { background: rgba(0,0,0,.3); color: rgba(255,255,255,.6); text-decoration: line-through; }
+#goalChip.urgent { background: #ff5a4f; animation: badgePop .6s infinite; }
+
+.gift-badge { position: absolute; right: calc(var(--e) + 2%); top: 1%; z-index: 3; width: 42%; aspect-ratio: 1; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-style: normal; font-size: calc(var(--tw) * .24); background: radial-gradient(circle at 35% 30%, #fff6c0, #ffcf33 60%, #e09b00); box-shadow: 0 0 0 2px #fff, 0 0 12px 3px rgba(255,200,40,.85); animation: giftGlow 1.6s ease-in-out infinite; pointer-events: none; }
+@keyframes giftGlow { 50% { box-shadow: 0 0 0 2px #fff, 0 0 20px 7px rgba(255,210,60,1); transform: scale(1.08); } }
+.gain { position: fixed; z-index: 45000; pointer-events: none; transform: translate(-50%, -50%); font-weight: 900; font-size: 30px; color: #fff; text-shadow: 0 3px 0 rgba(0,0,0,.35), 0 0 14px rgba(255,220,80,.9); animation: comboUp 1.4s ease-out forwards; white-space: nowrap; }
+
+.node .nmark { position: absolute; top: -14px; left: -10px; font-size: 22px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.35)); }
+
+/* reward modal */
+#modal.reward-modal .modal-card { background: radial-gradient(circle at 50% 0%, #fff7d1, #fffdf6 55%, #f6eedb); }
+#modal.reward-modal #mIcon { display: none; }
+.chest { font-size: 86px; line-height: 1; animation: chestShake .7s ease-in-out, chestFloat 2s .7s ease-in-out infinite; filter: drop-shadow(0 8px 10px rgba(0,0,0,.25)); }
+@keyframes chestShake { 0%,100% { transform: rotate(0) scale(.6); } 20% { transform: rotate(-12deg) scale(1); } 40% { transform: rotate(12deg); } 60% { transform: rotate(-8deg) scale(1.15); } 80% { transform: rotate(4deg); } }
+@keyframes chestFloat { 50% { transform: translateY(-6px); } }
+.ritems { display: flex; flex-wrap: wrap; gap: 10px; justify-content: center; margin: 14px 0 4px; }
+.ritem { min-width: 76px; background: #fff; border-radius: 18px; padding: 10px 8px 8px; box-shadow: 0 4px 0 #e2d4ae, 0 6px 14px rgba(0,0,0,.08); display: flex; flex-direction: column; align-items: center; animation: starPop .5s cubic-bezier(.3,1.6,.5,1) backwards; }
+.ritem .ri { font-size: 34px; line-height: 1.1; height: 38px; display: flex; align-items: center; }
+.ritem b { font-size: 22px; color: #3a2a10; }
+.ritem small { font-size: 13px; color: #7a6a48; font-weight: 700; }
+.coin.big { width: 32px; height: 32px; }
+.win-chest { display: flex; align-items: center; gap: 8px; margin-top: 12px; font-size: 16px; }
+.win-chest > span { font-size: 24px; }
+.win-goal { margin-top: 10px; padding: 8px 12px; border-radius: 14px; font-size: 16px; background: #eee3c8; }
+.win-goal.ok { background: #d4f5d4; color: #145c22; }
+
+/* missions screen */
+#missions .scroll { display: flex; flex-direction: column; gap: 12px; padding-bottom: 20px; }
+.chest-card { display: flex; flex-direction: column; gap: 14px; }
+.cc-row { display: flex; gap: 12px; align-items: flex-start; }
+.cc-ic { font-size: 40px; line-height: 1; }
+.cc-body { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+.cc-body b { font-size: 19px; }
+.cc-body small { font-size: 15px; opacity: .85; line-height: 1.35; }
+.cc-next { font-weight: 800; color: #ffe27a; }
+.m-head { margin: 6px 4px 0; font-size: 20px; }
+.mission { display: flex; align-items: center; gap: 12px; background: rgba(255,255,255,.13); border: 1px solid rgba(255,255,255,.18); border-radius: 20px; padding: 14px; backdrop-filter: blur(8px); -webkit-backdrop-filter: blur(8px); }
+.mission + .mission { margin-top: 10px; }
+.mission.done { border-color: #ffd23f; box-shadow: 0 0 0 2px rgba(255,210,60,.6), 0 0 18px rgba(255,210,60,.35); }
+.m-ic { font-size: 36px; width: 52px; height: 52px; border-radius: 16px; background: rgba(0,0,0,.18); display: flex; align-items: center; justify-content: center; flex: none; }
+.m-body { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+.m-title { font-size: 17px; font-weight: 800; line-height: 1.25; }
+.m-bar { position: relative; height: 20px; border-radius: 10px; background: rgba(0,0,0,.28); overflow: hidden; }
+.m-bar > div { height: 100%; background: linear-gradient(90deg, #7ef0a8, #2fbf6e); border-radius: 10px; transition: width .5s; }
+.m-bar > span { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 800; text-shadow: 0 1px 2px rgba(0,0,0,.6); }
+#mChestFill { background: linear-gradient(90deg, #ffe27a, #ffb21e) !important; }
+.m-rew { font-size: 14px; opacity: .9; font-weight: 700; }
+.m-claim { flex: none; font-size: 18px; padding: 12px 16px; animation: btnPulse 1.2s ease-in-out infinite; }
+.m-note { font-size: 14px; opacity: .8; line-height: 1.4; margin: 6px 4px; }

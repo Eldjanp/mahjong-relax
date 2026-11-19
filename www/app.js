@@ -505,19 +505,20 @@ function newGame(mode, id) {
     ok = solvableAssignTray(tiles, buildPairs(tiles.length / 2, variety, Math.random));
   }
   tiles.forEach(t => { t.k = t._k; delete t._k; });
-  G = { mode, id, tiles, name, tray: [], history: [], time: 0, used: 0, won: false, over: false, combo: 0, lastMatch: 0, total: tiles.length };
+  assignGifts(tiles, mode === 'level' ? id : 5);
+  G = { mode, id, tiles, name, tray: [], history: [], time: 0, used: 0, won: false, over: false, combo: 0, lastMatch: 0, total: tiles.length, obj: mode === 'level' ? goalForLevel(id, tiles.length) : null, fresh: true };
   saveGame();
   startGameScreen(true);
 }
 function saveGame() {
   if (!G || G.won) { store.del('game2'); return; }
-  store.set('game2', { mode: G.mode, id: G.id, name: G.name || '', time: G.time, used: G.used, tray: G.tray, history: G.history, tiles: G.tiles.map(t => [t.x, t.y, t.z, t.k, t.state]) });
+  store.set('game2', { mode: G.mode, id: G.id, name: G.name || '', time: G.time, used: G.used, tray: G.tray, history: G.history, obj: G.obj || null, tiles: G.tiles.map(t => [t.x, t.y, t.z, t.k, t.state, t.b || 0]) });
 }
 function loadGame(mode, id) {
   const g = store.get('game2', null);
   if (!g || g.mode !== mode || g.id !== id) return false;
   G = { mode, id, name: g.name || '', time: g.time || 0, used: g.used || 0, tray: g.tray || [], history: g.history || [], won: false, over: false, combo: 0, lastMatch: 0,
-    tiles: g.tiles.map((a, i) => ({ id: i, x: a[0], y: a[1], z: a[2], k: a[3], state: a[4] })) };
+    obj: g.obj || null, tiles: g.tiles.map((a, i) => ({ id: i, x: a[0], y: a[1], z: a[2], k: a[3], state: a[4], b: a[5] || null })) };
   G.total = G.tiles.length;
   if (G.tray.length >= TRAY_MAX) G.over = true;
   return G.tiles.some(t => t.state !== 2);
@@ -569,13 +570,13 @@ function placeTile(t) {
 function tileHTML(k) { return '<div class="side"></div><div class="face">' + faceSVG(k) + '</div>'; }
 function makeTileEl(t) {
   const el = document.createElement('div');
-  el.className = 'tile'; el.innerHTML = tileHTML(t.k); el.dataset.id = t.id;
+  el.className = 'tile'; el.innerHTML = tileHTML(t.k) + giftHTML(t.b); el.dataset.id = t.id;
   t.el = el; placeTile(t); boardEl.appendChild(el);
   return el;
 }
 function makeTrayEl(t, i) {
   const el = document.createElement('div');
-  el.className = 'tile'; el.innerHTML = tileHTML(t.k); el.dataset.id = t.id;
+  el.className = 'tile'; el.innerHTML = tileHTML(t.k) + giftHTML(t.b); el.dataset.id = t.id;
   el.style.width = tgeo.tw + 'px'; el.style.height = tgeo.th + 'px';
   el.style.left = slotLeft(i) + 'px'; el.style.top = (tgeo.pad - 2) + 'px';
   el.style.zIndex = 10 + i;
@@ -798,6 +799,7 @@ function moveToTray(t) {
     G.history = G.history.filter(id => id !== a.id && id !== b.id);
     const now = performance.now();
     G.combo = (now - G.lastMatch < 4000) ? G.combo + 1 : 1; G.lastMatch = now;
+    { const combo = G.combo, tr = trayEl.getBoundingClientRect(); setTimeout(() => onPairBroken(a, b, combo, tr.left + tr.width / 2, tr.bottom + 10), 700); }
     const elA = trayEls.get(a.id), elB = trayEls.get(b.id);
     trayEls.delete(a.id); trayEls.delete(b.id);
     setTimeout(() => breakPair(elA, elB, G.combo), 300);
@@ -806,7 +808,7 @@ function moveToTray(t) {
     G.over = true;
     setTimeout(trayFull, 380);
   } else {
-    if (G.tray.length === TRAY_MAX - 1) setTimeout(() => Snd.warn(), 300);
+    if (G.tray.length === TRAY_MAX - 1) { setTimeout(() => Snd.warn(), 300); goalFail('calm'); }
     relayoutTray();
   }
   updateInfo(); saveGame();
@@ -866,8 +868,8 @@ function afterRescue() {
   G.over = false; trayEl.classList.remove('full');
   closeModal(); relayoutTray(); refreshFree(); updateInfo(); saveGame();
 }
-function doUndo() { const id = G.history[G.history.length - 1]; if (id === undefined) return false; returnToBoard(id); G.used++; Snd.undo(); afterRescue(); return true; }
-function doClear() { if (!G.tray.length) return false; [...G.tray].reverse().forEach((id, i) => setTimeout(() => { if (G.tiles[id].state === 1) { returnToBoard(id); refreshFree(); } }, i * 90)); G.used++; Snd.undo(); afterRescue(); setTimeout(() => { refreshFree(); saveGame(); }, G.tray.length * 90 + 50); return true; }
+function doUndo() { const id = G.history[G.history.length - 1]; if (id === undefined) return false; returnToBoard(id); markUsed(); Snd.undo(); afterRescue(); return true; }
+function doClear() { if (!G.tray.length) return false; [...G.tray].reverse().forEach((id, i) => setTimeout(() => { if (G.tiles[id].state === 1) { returnToBoard(id); refreshFree(); } }, i * 90)); markUsed(); Snd.undo(); afterRescue(); setTimeout(() => { refreshFree(); saveGame(); }, G.tray.length * 90 + 50); return true; }
 
 // spend an item (or coins) — returns true when paid
 function pay(kind) {
@@ -917,7 +919,7 @@ function showHint() {
 $('hintBtn').onclick = () => {
   if (!G || G.won || G.busy || G.over) return; Snd.resume();
   if (!findHint()) { showHint(); return; }
-  useItem('hint', () => { showHint(); G.used++; Snd.hint(); saveGame(); });
+  useItem('hint', () => { showHint(); markUsed(); Snd.hint(); saveGame(); });
 };
 $('undoBtn').onclick = () => {
   if (!G || G.won || G.busy) return; Snd.resume();
@@ -954,7 +956,7 @@ function doShuffle() {
     ], { duration: 900, easing: 'ease-in-out', delay: Math.random() * 80 });
   }
   setTimeout(() => { board.forEach(t => { t.k = t._k; delete t._k; t.el.querySelector('.face').innerHTML = faceSVG(t.k); }); refreshFree(); }, 450);
-  setTimeout(() => { G.busy = false; G.used++; saveGame(); }, 1000);
+  setTimeout(() => { G.busy = false; markUsed(); saveGame(); }, 1000);
 }
 function trayFull() {
   if (!G || G.won) return;
@@ -968,6 +970,205 @@ function trayFull() {
     { t: '↺ Fillo nga e para', cls: 'danger', fn: () => newGame(G.mode, G.id) }]), 450);
 }
 
+
+// ---------- Rewards: star chest, gifts, missions, level goals, gift tiles ----------
+const HELP_KEYS = ['hint', 'undo', 'clear', 'shuffle'];
+const HELP_ICON = { hint: '💡', undo: '↶', clear: '📤', shuffle: '🔀' };
+const HELP_NAME = { hint: 'Ndihmë', undo: 'Kthe', clear: 'Pastro', shuffle: 'Përzie' };
+S.rw = Object.assign({ starBank: 0, chests: 0, missions: [], tier: 0 }, store.get('rw', {}));
+const saveRw = () => store.set('rw', S.rw);
+const CHEST_GOAL = 10;
+const randHelp = () => HELP_KEYS[Math.floor(Math.random() * HELP_KEYS.length)];
+function makeReward(helpers, coins) { const r = { coins }; for (let i = 0; i < helpers; i++) { const k = randHelp(); r[k] = (r[k] || 0) + 1; } return r; }
+function grant(r) { for (const k of HELP_KEYS) if (r[k]) S.inv[k] += r[k]; if (r.coins) S.coins += r.coins; save(); updateTools(); }
+function rewardHTML(r) {
+  let h = '<div class="ritems">';
+  let i = 0;
+  for (const k of HELP_KEYS) if (r[k]) h += `<div class="ritem" style="animation-delay:${0.35 + 0.15 * i++}s"><span class="ri">${HELP_ICON[k]}</span><b>+${r[k]}</b><small>${HELP_NAME[k]}</small></div>`;
+  if (r.coins) h += `<div class="ritem" style="animation-delay:${0.35 + 0.15 * i++}s"><span class="ri"><i class="coin big"></i></span><b>+${r.coins}</b><small>Monedha</small></div>`;
+  return h + '</div>';
+}
+function rewardShort(r) { return HELP_KEYS.filter(k => r[k]).map(k => `${HELP_ICON[k]}${r[k] > 1 ? '×' + r[k] : ''}`).join(' ') + (r.coins ? ` 🪙${r.coins}` : ''); }
+function showReward(title, icon, r, then) {
+  grant(r);
+  modal(icon, title, `<div class="chest">${icon}</div>` + rewardHTML(r), [{ t: 'Merr 🎉', cls: 'primary', fn: then }]);
+  $('modal').classList.add('reward-modal');
+  Snd.win(); vibe([20, 30, 40]); bumpCoins();
+}
+let rewardQueue = [];
+function queueReward(title, icon, r) { rewardQueue.push({ title, icon, r }); }
+function flushRewards(then) {
+  const q = rewardQueue.shift();
+  if (!q) { $('modal').classList.remove('reward-modal'); return then && then(); }
+  showReward(q.title, q.icon, q.r, () => flushRewards(then));
+}
+
+// --- Missions (3 active challenges) ---
+const MISSION_TYPES = {
+  pairs:   { icon: '💥', base: 30, step: 15, text: n => `Thyej ${n} çifte pllakash` },
+  levels:  { icon: '🏁', base: 3, step: 1, text: n => `Kalo ${n} nivele` },
+  stars3:  { icon: '⭐', base: 2, step: 1, text: n => `Kalo ${n} nivele me 3 yje` },
+  combo3:  { icon: '🔥', base: 3, step: 2, text: n => `Arri kombo x3 ${n} herë` },
+  nohelp:  { icon: '🧠', base: 2, step: 1, text: n => `Kalo ${n} nivele pa përdorur ndihma` },
+  flowers: { icon: '🌸', base: 3, step: 2, text: n => `Thyej ${n} çifte lulesh ose stinësh` },
+  dragons: { icon: '🐉', base: 4, step: 2, text: n => `Thyej ${n} çifte dragonjsh (中 發 ▢)` },
+  winds:   { icon: '🌬️', base: 4, step: 2, text: n => `Thyej ${n} çifte erërash (東 南 西 北)` },
+  fast:    { icon: '⏱️', base: 2, step: 1, text: n => `Kalo ${n} nivele për më pak se 2 minuta` },
+  gold:    { icon: '🎁', base: 3, step: 2, text: n => `Thyej ${n} pllaka me dhuratë` },
+  goals:   { icon: '🎯', base: 1, step: 1, text: n => `Kryej ${n} sfida nivelesh 🎯` },
+  daily:   { icon: '📅', base: 1, step: 1, text: n => `Fito ${n} sfidë ditore` },
+};
+function newMission(exclude) {
+  const types = Object.keys(MISSION_TYPES).filter(t => !exclude.includes(t));
+  const type = types[Math.floor(Math.random() * types.length)];
+  const d = MISSION_TYPES[type], lvl = Math.min(6, Math.floor(S.rw.tier / 3));
+  return { type, goal: d.base + d.step * lvl, prog: 0, reward: makeReward(1 + (Math.random() < 0.5 ? 1 : 0) + (lvl >= 2 ? 1 : 0), 20 + 10 * Math.min(lvl, 5)) };
+}
+function ensureMissions() {
+  for (let i = 0; i < 3; i++) if (!S.rw.missions[i]) S.rw.missions[i] = newMission(S.rw.missions.filter(Boolean).map(m => m.type));
+  saveRw();
+}
+function track(type, n = 1) {
+  let changed = false;
+  for (const m of S.rw.missions) if (m && m.type === type && m.prog < m.goal) {
+    m.prog = Math.min(m.goal, m.prog + n); changed = true;
+    if (m.prog >= m.goal) setTimeout(() => toast(`${MISSION_TYPES[type].icon} Sfida u krye! Merre shpërblimin te 🎯 Sfidat`), 600);
+  }
+  if (changed) { saveRw(); updateMissionBadge(); }
+}
+const claimable = () => S.rw.missions.filter(m => m && m.prog >= m.goal).length;
+function updateMissionBadge() {
+  const n = claimable();
+  document.querySelectorAll('.mission-badge').forEach(b => { b.textContent = n; b.classList.toggle('hidden', !n); });
+  const bar = $('homeChestFill'); if (bar) bar.style.width = (100 * S.rw.starBank / CHEST_GOAL) + '%';
+  const txt = $('homeChestText'); if (txt) txt.textContent = `${S.rw.starBank}/${CHEST_GOAL}`;
+}
+function renderMissions() {
+  ensureMissions();
+  $('mChestFill').style.width = (100 * S.rw.starBank / CHEST_GOAL) + '%';
+  $('mChestText').textContent = `⭐ ${S.rw.starBank}/${CHEST_GOAL}`;
+  const next5 = Math.ceil(S.level / 5) * 5;
+  $('mGiftText').textContent = `Niveli ${next5 < S.level ? next5 + 5 : next5}`;
+  const list = $('missionList'); list.innerHTML = '';
+  S.rw.missions.forEach((m, i) => {
+    const d = MISSION_TYPES[m.type], done = m.prog >= m.goal;
+    const el = document.createElement('div');
+    el.className = 'mission' + (done ? ' done' : '');
+    el.innerHTML = `<div class="m-ic">${d.icon}</div><div class="m-body"><div class="m-title">${d.text(m.goal)}</div>
+      <div class="m-bar"><div style="width:${100 * m.prog / m.goal}%"></div><span>${m.prog}/${m.goal}</span></div>
+      <div class="m-rew">Shpërblimi: ${rewardShort(m.reward)}</div></div>`;
+    if (done) { const b = document.createElement('button'); b.className = 'btn primary m-claim'; b.textContent = 'Merr'; b.onclick = () => claimMission(i); el.appendChild(b); }
+    list.appendChild(el);
+  });
+  updateMissionBadge();
+}
+function claimMission(i) {
+  const m = S.rw.missions[i]; if (!m || m.prog < m.goal) return;
+  S.rw.tier++;
+  S.rw.missions[i] = null;
+  S.rw.missions[i] = newMission(S.rw.missions.filter(Boolean).map(x => x.type).concat([m.type]));
+  saveRw();
+  showReward('Sfida u krye!', MISSION_TYPES[m.type].icon, m.reward, () => { $('modal').classList.remove('reward-modal'); renderMissions(); });
+}
+function openMissions() { closeModal(); clearInterval(timerInt); renderMissions(); showScreen('missions'); }
+
+// --- Level goals (special challenge levels) ---
+const GOALS = {
+  time:   { icon: '⏱️', name: 'Kundër kohës', desc: g => `Kalo nivelin brenda <b>${fmtSec(g.goal)}</b>.` },
+  nohelp: { icon: '🧠', name: 'Pa ndihma', desc: () => 'Kalo nivelin <b>pa përdorur asnjë ndihmë</b>.' },
+  combo:  { icon: '🔥', name: 'Mjeshtri i kombove', desc: () => 'Arri një <b>kombo x3</b> (3 çifte shpejt njëri pas tjetrit).' },
+  calm:   { icon: '🧘', name: 'Kutia e qetë', desc: () => 'Mos lejo që kutia të ketë <b>3 pllaka</b> njëherësh.' },
+};
+const fmtSec = s => Math.floor(s / 60) + ':' + pad2(Math.max(0, Math.floor(s % 60)));
+function goalForLevel(lv, total) {
+  if (lv < 6 || lv % 4 !== 2) return null;
+  const type = ['time', 'combo', 'nohelp', 'calm'][Math.floor(lv / 4) % 4];
+  return { type, goal: type === 'time' ? Math.ceil(total * 1.7) + 20 : type === 'combo' ? 3 : 0, prog: 0, failed: false };
+}
+function goalFail(type) {
+  if (!G || !G.obj || G.obj.type !== type || G.obj.failed) return;
+  G.obj.failed = true; updateGoalChip();
+  toast('🎯 Sfida e nivelit dështoi — vazhdo të luash!');
+}
+function goalOK() {
+  const o = G && G.obj; if (!o) return false;
+  if (o.failed) return false;
+  if (o.type === 'time') return G.time <= o.goal;
+  if (o.type === 'combo') return o.prog >= 3;
+  return true;
+}
+function updateGoalChip() {
+  const chip = $('goalChip');
+  if (!G || !G.obj) { chip.classList.add('hidden'); return; }
+  const o = G.obj, d = GOALS[o.type];
+  chip.classList.remove('hidden');
+  let txt = d.icon + ' ';
+  if (o.type === 'time') txt += o.failed ? 'Koha mbaroi' : fmtSec(o.goal - G.time);
+  else if (o.type === 'combo') txt += `Kombo x3 ${o.prog >= 3 ? '✓' : ''}`;
+  else txt += d.name;
+  if (o.failed) txt += ' ✗';
+  chip.textContent = txt;
+  chip.classList.toggle('failed', o.failed);
+  chip.classList.toggle('ok', !o.failed && (o.type === 'combo' ? o.prog >= 3 : false));
+  chip.classList.toggle('urgent', o.type === 'time' && !o.failed && o.goal - G.time <= 15);
+}
+function markUsed() { G.used++; goalFail('nohelp'); }
+
+// --- Gift tiles ---
+function assignGifts(tiles, lv) {
+  const n = 1 + (Math.random() < 0.5 ? 1 : 0) + (lv % 5 === 0 ? 1 : 0);
+  const pool = shuffleArr(tiles.slice());
+  for (let i = 0; i < n && i < pool.length; i++) pool[i].b = Math.random() < 0.55 ? 'coin' : randHelp();
+}
+function giftHTML(b) { return b ? `<i class="gift-badge">${b === 'coin' ? '🪙' : HELP_ICON[b]}</i>` : ''; }
+function collectGift(t, x, y) {
+  if (!t.b) return;
+  let txt;
+  if (t.b === 'coin') { S.coins += 15; txt = '+15 🪙'; }
+  else { S.inv[t.b]++; txt = `+1 ${HELP_ICON[t.b]}`; }
+  save(); updateTools(); bumpCoins(); track('gold');
+  const el = document.createElement('div'); el.className = 'gain'; el.textContent = txt;
+  el.style.left = x + 'px'; el.style.top = y + 'px';
+  document.body.appendChild(el); setTimeout(() => el.remove(), 1400);
+  Snd.coin();
+  t.b = null;
+}
+
+// --- Events from the game ---
+function onPairBroken(a, b, combo, x, y) {
+  track('pairs');
+  const c = a.k[0];
+  if (c === 'f' || c === 's') track('flowers');
+  if (c === 'r') track('dragons');
+  if (c === 'w') track('winds');
+  if (combo === 3) track('combo3');
+  if (G.obj && G.obj.type === 'combo') { G.obj.prog = Math.max(G.obj.prog, combo); updateGoalChip(); }
+  collectGift(a, x - 30, y); collectGift(b, x + 30, y);
+}
+// returns HTML lines for the win dialog and queues periodic rewards
+function onWinRewards(stars, prevStars, first) {
+  const lines = [];
+  if (G.mode === 'level') {
+    track('levels');
+    if (stars === 3) track('stars3');
+    if (G.used === 0) track('nohelp');
+    if (G.time < 120) track('fast');
+    const newStars = Math.max(0, stars - prevStars);
+    S.rw.starBank += newStars;
+    while (S.rw.starBank >= CHEST_GOAL) { S.rw.starBank -= CHEST_GOAL; S.rw.chests++; queueReward('Sandëku me yje!', '🧰', makeReward(3, 40)); }
+    if (first && G.id % 20 === 0) queueReward(`Kapitulli ${G.id / 20} u përfundua!`, '👑', { hint: 1, undo: 1, clear: 1, shuffle: 1, coins: 100 });
+    else if (first && G.id % 5 === 0) queueReward(`Dhurata e nivelit ${G.id}`, '🎁', makeReward(2, 30));
+    lines.push(`<div class="win-chest"><span>🧰</span><div class="wc-track"><div style="width:${100 * S.rw.starBank / CHEST_GOAL}%"></div></div><b>⭐ ${S.rw.starBank}/${CHEST_GOAL}</b></div>`);
+  } else track('daily');
+  if (G.obj) {
+    const ok = goalOK();
+    if (ok) { track('goals'); queueReward('Sfida e nivelit u krye!', GOALS[G.obj.type].icon, makeReward(2, 25)); }
+    lines.push(`<div class="win-goal ${ok ? 'ok' : 'no'}">${GOALS[G.obj.type].icon} ${GOALS[G.obj.type].name}: <b>${ok ? 'U krye ✓' : 'Nuk u krye'}</b></div>`);
+  }
+  saveRw(); updateMissionBadge();
+  return lines.join('');
+}
+
 // ---------- Win ----------
 function win() {
   if (G.won) return;
@@ -978,7 +1179,8 @@ function win() {
   confettiFx();
   const s = Math.floor(G.time), timeTxt = Math.floor(s / 60) + ':' + pad2(s % 60);
   const stars = G.used === 0 ? 3 : G.used <= 2 ? 2 : 1;
-  let reward, title, btns;
+  let reward, title, btns, extra = '';
+  const prevStars = G.mode === 'level' ? (S.stars[G.id] || 0) : 0, firstWin = G.mode === 'level' ? !S.done[G.id] : !S.daily[G.id];
   if (G.mode === 'level') {
     const first = !S.done[G.id];
     reward = first ? 15 + stars * 5 : 5;
@@ -993,21 +1195,24 @@ function win() {
     btns = [{ t: 'Kalendari', cls: 'primary', fn: openDaily }, { t: 'Menuja kryesore', cls: 'light', fn: goHome }];
   }
   S.coins += reward; save();
+  extra = onWinRewards(stars, prevStars, firstWin);
+  btns = btns.map(b => ({ ...b, fn: () => flushRewards(b.fn) }));
   setTimeout(() => {
-    modal(G.mode === 'level' ? '🎉' : '🏆', title, `Koha: <b>${timeTxt}</b><br><span class="reward"><i class="coin"></i>+<span id="rewardNum">0</span></span>`, btns, stars);
+    modal(G.mode === 'level' ? '🎉' : '🏆', title, `Koha: <b>${timeTxt}</b><br><span class="reward"><i class="coin"></i>+<span id="rewardNum">0</span></span>${extra}`, btns, stars);
     let n = 0; const step = Math.max(1, Math.ceil(reward / 20));
     const iv = setInterval(() => { n = Math.min(reward, n + step); const e = $('rewardNum'); if (e) e.textContent = n; if (n % 3 === 0) Snd.coin(); if (n >= reward) { clearInterval(iv); updateTools(); bumpCoins(); } }, 50);
   }, 500);
 }
 
 // ---------- Screens ----------
-const SCREENS = ['home', 'game', 'levels', 'daily', 'settings'];
+const SCREENS = ['home', 'game', 'levels', 'daily', 'settings', 'missions'];
 let current = 'home';
 function showScreen(id) { current = id; SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); }
 function goHome() { closeModal(); clearInterval(timerInt); if (G && !G.won) saveGame(); updateHome(); showScreen('home'); }
 function fmtDate(key) { const [y, m, d] = key.split('-').map(Number); return `${d} ${MONTHS[m - 1]}`; }
 function updateHome() {
   $('playSub').textContent = 'Niveli ' + S.level;
+  updateMissionBadge();
   const t = new Date(), k = dateKey(t);
   $('dailySub').textContent = S.daily[k] ? `✔ ${t.getDate()} ${MONTHS_SHORT[t.getMonth()]} u krye` : `${t.getDate()} ${MONTHS[t.getMonth()]}`;
   updateTools();
@@ -1017,8 +1222,14 @@ function startGameScreen(intro) {
   showScreen('game');
   Snd.startMusic();
   $('gameTitle').textContent = G.mode === 'level' ? 'Niveli ' + G.id + (G.name ? ' · ' + G.name : '') : 'Sfida · ' + fmtDate(G.id);
+  updateGoalChip();
   requestAnimationFrame(() => {
     renderBoard(intro);
+    if (G.obj && G.fresh) {
+      G.fresh = false;
+      const d = GOALS[G.obj.type];
+      setTimeout(() => modal('🎯', 'Sfida e nivelit: ' + d.name, d.desc(G.obj) + '<br><br>Nëse e kryen, fiton <b>ndihma dhe monedha</b> si bonus!', [{ t: 'Fillojmë!', cls: 'primary' }]), 900);
+    }
     if (G.mode === 'level' && G.id === 1 && !store.get('tutorial', false)) {
       store.set('tutorial', true);
       setTimeout(() => modal('👋', 'Mirë se erdhe!', 'Prek një pllakë <b>të ndriçuar</b> dhe ajo shkon në <b>kutinë lart</b>. Kur dy pllaka të njëjta bashkohen atje, ato <b>thyhen</b>! Kujdes: nëse kutia mbushet me 4 pllaka të ndryshme, humbet.', [{ t: 'Fillojmë!', cls: 'primary', fn: showHint }]), 1100);
@@ -1028,6 +1239,7 @@ function startGameScreen(intro) {
   timerInt = setInterval(() => {
     if (!G || G.won || current !== 'game' || !$('modal').classList.contains('hidden') || document.hidden) return;
     G.time += 1;
+    if (G.obj && G.obj.type === 'time') { if (G.time > G.obj.goal) goalFail('time'); updateGoalChip(); }
     if (G.time % 5 === 0) saveGame();
   }, 1000);
 }
@@ -1037,6 +1249,7 @@ $('playBtn').onclick = () => { Snd.resume(); Snd.click(); playLevel(S.level); };
 $('dailyBtn').onclick = () => { Snd.resume(); Snd.click(); openDaily(); };
 $('levelsBtn').onclick = () => { Snd.resume(); Snd.click(); openMap(); };
 $('settingsBtn').onclick = () => { Snd.resume(); Snd.click(); renderSettings(); showScreen('settings'); };
+$('missionsBtn').onclick = () => { Snd.resume(); Snd.click(); openMissions(); };
 $('backBtn').onclick = goHome;
 document.querySelectorAll('.back').forEach(b => b.onclick = goHome);
 
@@ -1061,6 +1274,8 @@ function openMap() {
     b.className = 'node' + (locked ? ' locked' : done ? ' done' : '') + (i === S.level ? ' current' : '');
     b.style.left = x + 'px'; b.style.top = y + 'px';
     b.innerHTML = locked ? '🔒' : i;
+    if (i % 5 === 0 && !done) b.innerHTML += `<span class="nmark">${i % 20 === 0 ? '👑' : '🎁'}</span>`;
+    else if (i >= 6 && i % 4 === 2 && !done) b.innerHTML += '<span class="nmark">🎯</span>';
     if (done) { const st = S.stars[i] || 1; b.innerHTML += `<span class="nstars">${'★'.repeat(st)}<span class="off">${'★'.repeat(3 - st)}</span></span>`; }
     if (!locked) b.onclick = () => { Snd.resume(); Snd.click(); playLevel(i); };
     if (i % 3 === 0 && !locked) b.classList.add('shape');
@@ -1181,11 +1396,12 @@ document.addEventListener('visibilitychange', () => {
 // start music on first touch anywhere (browsers require a gesture)
 window.addEventListener('pointerdown', () => { Snd.resume(); Snd.startMusic(); }, { once: true });
 
-window.__mj = { get G() { return G; }, S, isFree, findHint, moveToTray, makeLayout, levelTarget, newGame, solvableAssignTray, buildPairs, boardTiles, win, tileImgs: () => tileImgs };
+window.__mj = { track, onWinRewards, renderMissions, get rewardQueue() { return rewardQueue; }, get G() { return G; }, S, isFree, findHint, moveToTray, makeLayout, levelTarget, newGame, solvableAssignTray, buildPairs, boardTiles, win, tileImgs: () => tileImgs };
 
 // ---------- Start ----------
 applyTheme();
 makeFloaters();
+ensureMissions();
 updateHome();
 showScreen('home');
 })();
