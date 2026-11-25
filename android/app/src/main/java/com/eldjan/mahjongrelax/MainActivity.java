@@ -12,6 +12,8 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        // ignore the phone's "font size" accessibility setting so the game layout always fits
+        try { getBridge().getWebView().getSettings().setTextZoom(100); } catch (Exception ignored) { }
         hideSystemBars();
     }
 

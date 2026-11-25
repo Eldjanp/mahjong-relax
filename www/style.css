@@ -334,3 +334,16 @@ body { --b1: #2fb487; --b2: #137a57; --b3: #08402e; background: linear-gradient(
 .tool .tl { font-size: 13px; }
 .tool .badge { top: -7px; right: -2px; min-width: 22px; height: 22px; font-size: 12px; padding: 0 5px; border-width: 1.5px; }
 .tool .badge.buy { font-size: 10px; }
+
+/* =================== v2.4 tools always fit =================== */
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+.tools { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 6px; padding: 0 2px; }
+.tool { min-width: 0; max-width: none; width: 100%; overflow: visible; padding: 7px 3px; gap: 4px; }
+.tool .tl { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.tool .badge { right: -3px; }
+@media (max-width: 370px) {
+  .tool { flex-direction: column; gap: 1px; padding: 5px 2px; }
+  .tool .ic { font-size: 18px; }
+  .tool .tl { font-size: 11px; }
+}
+.tool .badge { top: -10px; right: -4px; }
