@@ -53,7 +53,7 @@ const Snd = {
     const n = c.sampleRate; this.noiseBuf = c.createBuffer(1, n, n);
     const nd = this.noiseBuf.getChannelData(0); for (let i = 0; i < n; i++) nd[i] = Math.random() * 2 - 1;
   },
-  resume() { this.init(); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); },
+  resume() { this.init(); if (this.ctx && this.ctx.state === 'suspended') this.ctx.resume(); this.renderShatters(); },
   env(g, t, a, peak, d) { g.gain.setValueAtTime(0.0001, t); g.gain.exponentialRampToValueAtTime(peak, t + a); g.gain.exponentialRampToValueAtTime(0.0001, t + a + d); },
   tone(f, dur, { type = 'sine', vol = 0.2, delay = 0, slide = null, wet = 0.2, attack = 0.005, dest = null } = {}) {
     if (!this.ctx) return;
@@ -73,7 +73,13 @@ const Snd = {
     if (wet) { const w = c.createGain(); w.gain.value = wet; g.connect(w); w.connect(this.rev); }
     s.start(t, Math.random() * 0.5); s.stop(t + dur + 0.05);
   },
-  fx() { return S.set.sound && this.ctx; },
+  quiet: false,
+  fx() { return S.set.sound && this.ctx && !this.quiet; },
+  // during a level only the shatter sound plays; music and other effects are silent
+  setQuiet(q) {
+    if (this.quiet === q) return; this.quiet = q;
+    if (this.ctx) this.musicBus.gain.setTargetAtTime(!q && S.set.music ? 0.55 : 0, this.ctx.currentTime, q ? 0.15 : 0.8);
+  },
   // ceramic "clack" when picking a tile
   click() { if (!this.fx()) return; this.noise(0.035, { vol: 0.5, freq: 2600, q: 2.5 }); this.tone(1900, 0.05, { type: 'triangle', vol: 0.12, wet: 0.05 }); this.tone(420, 0.06, { vol: 0.15, wet: 0 }); },
   // resonant "ping" made from a noise impulse through a high-Q band-pass (sounds like a ceramic chip)
@@ -86,29 +92,97 @@ const Snd = {
     const w = c.createGain(); w.gain.value = 0.35; g.connect(w); w.connect(this.rev);
     s.start(t, Math.random() * 0.8); s.stop(t + decay + 0.05);
   },
-  // realistic ceramic shatter: sharp crack, body knock, ringing, then falling shards that tinkle and bounce
-  breakTiles(combo = 1) {
-    if (!this.fx()) return;
-    this.noise(0.012, { vol: 1.0, type: 'highpass', freq: 3500, q: 0.7, wet: 0.05 });          // transient snap
-    this.noise(0.09, { vol: 0.85, freq: 2300, q: 0.9, delay: 0.004, wet: 0.2 });               // crack
-    this.noise(0.25, { vol: 0.35, type: 'highpass', freq: 6000, q: 0.5, delay: 0.01, wet: 0.3 }); // crunch / grit
-    this.tone(150, 0.09, { vol: 0.35, slide: 70, wet: 0 });                                     // knock
-    this.tone(1760 + Math.random() * 200, 0.22, { vol: 0.07, wet: 0.4 });                       // ceramic ring (inharmonic)
-    this.tone(2930 + Math.random() * 200, 0.16, { vol: 0.05, wet: 0.4 });
-    // shards: dense at first, then sparse bounces
-    let t = 0.02;
-    for (let i = 0; i < 22; i++) {
-      t += 0.004 + Math.pow(i / 22, 2) * 0.05 + Math.random() * 0.012;
-      this.ping(2600 + Math.random() * 6500, t, 0.25 * (1 - i / 30) + Math.random() * 0.12, 0.03 + Math.random() * 0.09);
+  // ---- Realistic ceramic shatter, pre-rendered offline in several variations ----
+  shatterBufs: [], rendering: false,
+  async renderShatters() {
+    if (this.rendering || this.shatterBufs.length || !this.ctx) return;
+    const OAC = window.OfflineAudioContext || window.webkitOfflineAudioContext; if (!OAC) return;
+    this.rendering = true;
+    try { for (let v = 0; v < 6; v++) this.shatterBufs.push(await this.renderShatter(OAC, v)); } catch (e) { }
+    this.rendering = false;
+  },
+  async renderShatter(OAC, v) {
+    const sr = 44100, dur = 1.3, oc = new OAC(2, Math.ceil(sr * dur), sr);
+    const rnd = mulberry32(9137 + v * 101);
+    const R = (a, b) => a + rnd() * (b - a);
+    const noise = oc.createBuffer(1, sr, sr), nd = noise.getChannelData(0);
+    for (let i = 0; i < nd.length; i++) nd[i] = Math.random() * 2 - 1;
+    const master = oc.createGain(); master.gain.value = 0.9;
+    const comp = oc.createDynamicsCompressor(); comp.threshold.value = -12; comp.ratio.value = 4; comp.attack.value = 0.001; comp.release.value = 0.1;
+    master.connect(comp); comp.connect(oc.destination);
+    // a short excitation (click) at time t through resonant modes = a struck ceramic piece
+    const strike = (t, amp, modes, pan, clickLen = 0.0015, bright = 6000) => {
+      const src = oc.createBufferSource(); src.buffer = noise;
+      const env = oc.createGain(); env.gain.setValueAtTime(0, t); env.gain.linearRampToValueAtTime(amp, t + 0.0003); env.gain.exponentialRampToValueAtTime(0.0001, t + clickLen);
+      const p = oc.createStereoPanner ? oc.createStereoPanner() : oc.createGain(); if (p.pan) p.pan.value = pan;
+      src.connect(env);
+      // direct click (the "tick" of contact)
+      const hp = oc.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = bright * 0.5;
+      const cg = oc.createGain(); cg.gain.value = 0.35; env.connect(hp); hp.connect(cg); cg.connect(p);
+      for (const [f, q, d, g] of modes) {
+        const bp = oc.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = f; bp.Q.value = q;
+        const mg = oc.createGain(); mg.gain.setValueAtTime(g, t); mg.gain.exponentialRampToValueAtTime(0.0001, t + d);
+        env.connect(bp); bp.connect(mg); mg.connect(p);
+      }
+      p.connect(master);
+      src.start(t, rnd() * 0.5); src.stop(t + 0.4);
+    };
+    const t0 = 0.01;
+    // 1) the two tiles hit each other: strong broadband impact + ringing ceramic body modes
+    for (const side of [-0.35, 0.35]) {
+      const f0 = R(1050, 1500);
+      strike(t0 + (side > 0 ? R(0, 0.004) : 0), 2.2, [[f0, 25, 0.22, 3], [f0 * 2.31, 30, 0.16, 2.2], [f0 * 3.9, 35, 0.11, 1.6], [f0 * 5.8, 40, 0.07, 1.2], [R(7000, 9500), 30, 0.05, 1]], side, 0.004, 5000);
     }
-    // a couple of bigger pieces landing
-    this.noise(0.05, { vol: 0.3, freq: 1500, q: 2, delay: 0.32 + Math.random() * 0.05 });
-    this.ping(3200 + Math.random() * 1500, 0.34, 0.2, 0.12);
-    this.noise(0.04, { vol: 0.18, freq: 1800, q: 2, delay: 0.47 + Math.random() * 0.06 });
-    // sweet reward chime, rising with combo
-    const base = 880 * Math.pow(2, Math.min(combo - 1, 10) * 2 / 12);
-    this.tone(base, 0.6, { vol: 0.07, delay: 0.06, wet: 0.7 });
-    this.tone(base * 1.5, 0.7, { vol: 0.05, delay: 0.12, wet: 0.7 });
+    // 2) the crack: a dense burst of noise (material breaking)
+    { const src = oc.createBufferSource(); src.buffer = noise;
+      const bp = oc.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = R(2500, 3500); bp.Q.value = 0.7;
+      const g = oc.createGain(); g.gain.setValueAtTime(0, t0); g.gain.linearRampToValueAtTime(1.4, t0 + 0.001); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.07);
+      src.connect(bp); bp.connect(g); g.connect(master); src.start(t0); src.stop(t0 + 0.2); }
+    // grit / tiny crumbs
+    { const src = oc.createBufferSource(); src.buffer = noise;
+      const hp = oc.createBiquadFilter(); hp.type = 'highpass'; hp.frequency.value = 7000;
+      const g = oc.createGain(); g.gain.setValueAtTime(0.35, t0 + 0.005); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.25);
+      src.connect(hp); hp.connect(g); g.connect(master); src.start(t0); src.stop(t0 + 0.3); }
+    // a soft table thump under it
+    { const o = oc.createOscillator(); o.type = 'sine'; o.frequency.setValueAtTime(140, t0); o.frequency.exponentialRampToValueAtTime(60, t0 + 0.08);
+      const g = oc.createGain(); g.gain.setValueAtTime(0.5, t0); g.gain.exponentialRampToValueAtTime(0.0001, t0 + 0.1); o.connect(g); g.connect(master); o.start(t0); o.stop(t0 + 0.12); }
+    // 3) fragments fly apart and each bounces on the table a few times (with its own pitch)
+    const nFrag = 16 + Math.floor(R(0, 8));
+    for (let i = 0; i < nFrag; i++) {
+      const size = rnd();                                   // 0 = tiny chip, 1 = big piece
+      const f = R(2600, 4200) + (1 - size) * R(2000, 6000);
+      const modes = [[f, R(25, 45), R(0.025, 0.07) + size * 0.06, 1.6], [f * R(1.6, 2.4), R(30, 50), R(0.02, 0.05), 0.9]];
+      const pan = R(-0.9, 0.9);
+      let t = t0 + R(0.005, 0.05);                            // breaking off
+      strike(t, 0.35 + size * 0.4, modes, pan * 0.4, 0.001, 8000);
+      let dt = R(0.14, 0.38) * (0.6 + size * 0.5), amp = 0.55 + size * 0.5;   // flight time then bounces
+      const bounces = 2 + Math.floor(R(0, 3));
+      for (let b = 0; b < bounces; b++) {
+        t += dt; if (t > dur - 0.15) break;
+        strike(t, amp, modes.map(m => [m[0] * R(0.98, 1.02), m[1], m[2] * (b === 0 ? 1.2 : 0.9), m[3]]), pan, 0.0012, 7000);
+        dt *= R(0.42, 0.6); amp *= R(0.38, 0.55);
+      }
+      // a couple of pieces slide/skitter at the end
+      if (size > 0.7 && rnd() < 0.5) {
+        const src = oc.createBufferSource(); src.buffer = noise;
+        const bp = oc.createBiquadFilter(); bp.type = 'bandpass'; bp.frequency.value = R(3000, 5000); bp.Q.value = 2;
+        const g = oc.createGain(); g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(0.06, t + 0.01); g.gain.exponentialRampToValueAtTime(0.0001, t + 0.12);
+        const p = oc.createStereoPanner ? oc.createStereoPanner() : oc.createGain(); if (p.pan) p.pan.value = pan;
+        src.connect(bp); bp.connect(g); g.connect(p); p.connect(master); src.start(t); src.stop(t + 0.15);
+      }
+    }
+    return await oc.startRendering();
+  },
+  breakTiles(combo = 1) {
+    if (!S.set.sound || !this.ctx) return;
+    if (!this.shatterBufs.length) { this.renderShatters(); this.noise(0.08, { vol: 0.9, freq: 2600, q: 0.8 }); return; }
+    const c = this.ctx, src = c.createBufferSource();
+    src.buffer = this.shatterBufs[Math.floor(Math.random() * this.shatterBufs.length)];
+    src.playbackRate.value = 0.93 + Math.random() * 0.14;
+    const g = c.createGain(); g.gain.value = 0.95;
+    src.connect(g); g.connect(this.out);
+    const w = c.createGain(); w.gain.value = 0.12; g.connect(w); w.connect(this.rev);
+    src.start();
   },
   // a tile landing in the tray
   land() { if (!this.fx()) return; this.noise(0.03, { vol: 0.45, freq: 1900, q: 2.2 }); this.tone(300, 0.07, { vol: 0.18, wet: 0, slide: 220 }); },
@@ -129,17 +203,17 @@ const Snd = {
   shuffle() { if (!this.fx()) return; this.noise(0.5, { vol: 0.35, freq: 1200, q: 0.6, type: 'bandpass', attack: 0.15, wet: 0.3 }); for (let i = 0; i < 10; i++) this.noise(0.03, { vol: 0.3, freq: 2500, q: 2, delay: 0.25 + i * 0.04 }); },
   undo() { if (!this.fx()) return; this.tone(600, 0.15, { vol: 0.12, slide: 900, wet: 0.3 }); },
   coin() { if (!this.fx()) return; this.tone(1568, 0.08, { type: 'square', vol: 0.04 }); this.tone(2093, 0.25, { type: 'square', vol: 0.04, delay: 0.07, wet: 0.4 }); },
-  star(i) { if (!this.fx()) return; this.tone(880 * Math.pow(2, i * 4 / 12), 0.5, { vol: 0.14, wet: 0.6 }); this.tone(1760 * Math.pow(2, i * 4 / 12), 0.4, { vol: 0.05, wet: 0.6 }); },
-  win() { if (!this.fx()) return; [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => { this.tone(f, 0.6, { vol: 0.13, delay: i * 0.09, wet: 0.6 }); this.tone(f / 2, 0.6, { type: 'triangle', vol: 0.06, delay: i * 0.09 }); }); },
+  star(i) { if (!S.set.sound || !this.ctx) return; this.tone(880 * Math.pow(2, i * 4 / 12), 0.5, { vol: 0.14, wet: 0.6 }); this.tone(1760 * Math.pow(2, i * 4 / 12), 0.4, { vol: 0.05, wet: 0.6 }); },
+  win() { if (!S.set.sound || !this.ctx) return; [523, 659, 784, 1047, 1319, 1568].forEach((f, i) => { this.tone(f, 0.6, { vol: 0.13, delay: i * 0.09, wet: 0.6 }); this.tone(f / 2, 0.6, { type: 'triangle', vol: 0.06, delay: i * 0.09 }); }); },
   // gentle generative pentatonic music
   startMusic() {
     this.init(); if (!this.ctx || this.musicTimer) return;
-    const g = this.musicBus.gain; g.cancelScheduledValues(this.ctx.currentTime); g.setTargetAtTime(S.set.music ? 0.55 : 0, this.ctx.currentTime, 0.8);
+    const g = this.musicBus.gain; g.cancelScheduledValues(this.ctx.currentTime); g.setTargetAtTime(S.set.music && !this.quiet ? 0.55 : 0, this.ctx.currentTime, 0.8);
     const scale = [0, 2, 4, 7, 9];
     const chords = [[48, 55, 64], [45, 52, 60], [41, 48, 57], [43, 50, 59]];
     const mtof = m => 440 * Math.pow(2, (m - 69) / 12);
     this.musicTimer = setInterval(() => {
-      if (!this.ctx || this.ctx.state !== 'running' || !S.set.music) return;
+      if (!this.ctx || this.ctx.state !== 'running' || !S.set.music || this.quiet) return;
       const s = this.step++;
       if (s % 16 === 0) {
         const ch = chords[(s / 16) % chords.length];
@@ -152,7 +226,7 @@ const Snd = {
       }
     }, 300);
   },
-  setMusic(on) { if (!this.ctx) return; this.musicBus.gain.setTargetAtTime(on ? 0.55 : 0, this.ctx.currentTime, 0.5); if (on) this.startMusic(); },
+  setMusic(on) { if (!this.ctx) return; this.musicBus.gain.setTargetAtTime(on && !this.quiet ? 0.55 : 0, this.ctx.currentTime, 0.5); if (on) this.startMusic(); },
 };
 const vibe = ms => { if (S.set.vibe) try { navigator.vibrate && navigator.vibrate(ms); } catch (e) { } };
 
@@ -247,8 +321,8 @@ function candidateLayout(rng, target) {
   let cols, rows, maxZ, fill;
   if (target <= 24)      { cols = R(3, 5); rows = R(3, 5); maxZ = R(2, 2); fill = 0.6 + rng() * 0.4; }
   else if (target <= 50) { cols = R(4, 6); rows = R(4, 7); maxZ = R(2, 3); fill = 0.6 + rng() * 0.4; }
-  else if (target <= 80) { cols = R(5, 7); rows = R(5, 8); maxZ = R(3, 4); fill = 0.6 + rng() * 0.4; }
-  else                   { cols = R(6, 7); rows = R(6, 8); maxZ = R(3, 5); fill = 0.7 + rng() * 0.3; }
+  else if (target <= 80) { cols = R(5, 6); rows = R(5, 8); maxZ = R(3, 4); fill = 0.6 + rng() * 0.4; }
+  else                   { cols = 6; rows = R(7, 8); maxZ = R(4, 5); fill = 0.75 + rng() * 0.25; }
   const styles = ['stack', 'pyramid', 'brick', 'tower', 'mixed'];
   const style = styles[Math.floor(rng() * styles.length)];
   const stagger = rng() < 0.2;
@@ -534,12 +608,12 @@ let geo = null, tgeo = null;
 const trayEls = new Map();   // tile id -> element in the tray
 function layoutTray() {
   const W = Math.min(innerWidth - 28, 520);
-  const gap = Math.max(8, W * 0.025);
-  const sw = Math.min(84, (W - 24 - gap * 3) / 4);
+  const gap = 7;
+  const sw = Math.min(58, (W - 24 - gap * 3) / 4);
   const sh = sw * 1.3;
   trayEl.style.setProperty('--sw', sw + 'px'); trayEl.style.setProperty('--sh', sh + 'px'); trayEl.style.setProperty('--gap', gap + 'px');
   const tw = sw * 0.96, e = tw * 0.11;
-  tgeo = { sw, sh, gap, tw, th: tw * 1.3, e, pad: 12 };
+  tgeo = { sw, sh, gap, tw, th: tw * 1.3, e, pad: 7 };
   trayEl.style.setProperty('--e', e + 'px'); trayEl.style.setProperty('--tw', tw + 'px');
 }
 const slotLeft = i => tgeo.pad + i * (tgeo.sw + tgeo.gap) + (tgeo.sw - tgeo.tw) / 2;
@@ -550,7 +624,7 @@ function layoutBoard() {
   const maxZ = Math.max(...all.map(t => t.z));
   const W = wrapEl.clientWidth, H = wrapEl.clientHeight;
   const ASPECT = 1.3, EDGE = 0.11;
-  const tw = Math.min(W / (maxX / 2 + EDGE * maxZ + 0.05), H / ((maxY / 2) * ASPECT + EDGE * maxZ + 0.05), 120);
+  const tw = Math.min(W / (maxX / 2 + EDGE * maxZ + 0.02), H / ((maxY / 2) * ASPECT + EDGE * maxZ + 0.02), 140);
   const th = tw * ASPECT, e = tw * EDGE;
   geo = { tw, th, hw: tw / 2, hh: th / 2, e, maxZ };
   const bw = maxX * geo.hw + maxZ * e, bh = maxY * geo.hh + maxZ * e;
@@ -1207,7 +1281,7 @@ function win() {
 // ---------- Screens ----------
 const SCREENS = ['home', 'game', 'levels', 'daily', 'settings', 'missions'];
 let current = 'home';
-function showScreen(id) { current = id; SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); }
+function showScreen(id) { current = id; SCREENS.forEach(s => $(s).classList.toggle('hidden', s !== id)); Snd.setQuiet(id === 'game'); }
 function goHome() { closeModal(); clearInterval(timerInt); if (G && !G.won) saveGame(); updateHome(); showScreen('home'); }
 function fmtDate(key) { const [y, m, d] = key.split('-').map(Number); return `${d} ${MONTHS[m - 1]}`; }
 function updateHome() {
@@ -1396,6 +1470,7 @@ document.addEventListener('visibilitychange', () => {
 // start music on first touch anywhere (browsers require a gesture)
 window.addEventListener('pointerdown', () => { Snd.resume(); Snd.startMusic(); }, { once: true });
 
+window.__snd = Snd;
 window.__mj = { track, onWinRewards, renderMissions, get rewardQueue() { return rewardQueue; }, get G() { return G; }, S, isFree, findHint, moveToTray, makeLayout, levelTarget, newGame, solvableAssignTray, buildPairs, boardTiles, win, tileImgs: () => tileImgs };
 
 // ---------- Start ----------
